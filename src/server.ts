@@ -1,10 +1,11 @@
 import express from "express";
 import { config } from "./config";
+import { AppResponse } from "./utils";
 
 const app = express()
 
 app.get('/', (req, res) => {
-    res.send('Hello World!')
+    new AppResponse(200, 'Success', 'Hello World!').send(res);
 })
 
 app.listen(config.port, () => {
