@@ -3,22 +3,26 @@ import { ZodError } from 'zod';
 import { Prisma } from '../generated/prisma';
 import jwt from "jsonwebtoken"
 
+export interface AppRequest extends Request {
+    userId?: string
+}
+
 export class AppResponse {
 
     status: number;
     message: string;
     success: boolean;
-    content: unknown;
+    content?: unknown;
 
     constructor(
         status: number,
         message: string,
-        content: unknown
+        content?: unknown
     ) {
         this.status = status;
         this.message = message;
         this.success = true;
-        this.content = content;
+        this.content = content || null;
     }
 
     send(res: Response) {

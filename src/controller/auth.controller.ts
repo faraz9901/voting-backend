@@ -1,7 +1,7 @@
-import { Request, Response, NextFunction } from "express";
+import { Request, NextFunction, Response } from "express";
 import { prisma } from "../utils/prisma";
 import argon2 from "argon2"
-import { AppError, AppResponse } from "../utils";
+import { AppError, AppRequest, AppResponse, } from "../utils";
 import { generateToken } from "../utils/jwt";
 
 
@@ -76,7 +76,7 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
         httpOnly: false,
         secure: false,
         sameSite: 'none',
-        maxAge: 24 * 60 * 60 * 1000
+        maxAge: 7 * 24 * 60 * 60 * 1000  // 7 days
     })
 
     // dont send passsword to the client
@@ -84,4 +84,38 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
 
     // returning the response
     return new AppResponse(200, 'Login successful', authUser).send(res)
+}
+
+
+export const logout = async (req: Request, res: Response) => {
+    res.clearCookie("token")
+    return new AppResponse(200, "Logout Successful").send(res)
+}
+
+export const getCurrentUser = async (req: AppRequest, res: Response) => {
+    // getting the userId from the request
+    const userId = req.userId
+
+    // if userId not found
+    if (!userId) {
+        throw new AppError(401, "No User found")
+    }
+
+    // fetching the user from prisma 
+    const user = await prisma.user.findUnique({
+        where: {
+            id: userId,
+        },
+    });
+
+    // if there is no user in prisma
+    if (!user) {
+        throw new AppError(401, "No User found")
+    }
+
+    // Password should not be sent to client
+    const authUser = { ...user, passwordHash: "" }
+
+    // Sending the user data
+    return new AppResponse(200, "User found", authUser).send(res)
 }
