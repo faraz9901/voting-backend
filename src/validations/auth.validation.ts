@@ -1,15 +1,15 @@
 import z from "zod";
 
+const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_\-+=[\]{};':"\\|,.<>/?`~]).{6,}$/
+
 export const loginValidation = z.object(
     {
         email: z.email("Invalid Email"),
         password: z.string("Password is required")
-            .min(6, "Password should be atleast 6 characters long")
-            .regex(/(?=.*[a-z])/, "Password must contain at least one lowercase letter")
-            .regex(/(?=.*[A-Z])/, "Password must contain at least one uppercase letter")
-            .regex(/(?=.*\d)/, "Password must contain at least one number")
-            .regex(/(?=.*[!@#$%^&*()_\-+=[\]{};':"\\|,.<>/?`~])/,
-                "Password must contain at least one special character")
+            .regex(
+                passwordRegex,
+                "Invalid Credentials"
+            )
     }
 )
 
@@ -21,11 +21,9 @@ export const registerValidation = z.object(
             .max(50, "Name cannot be more than 50 character long"),
         email: z.email("Invalid Email"),
         password: z.string("Password is required")
-            .min(6, "Password should be atleast 6 characters long")
-            .regex(/(?=.*[a-z])/, "Password must contain at least one lowercase letter")
-            .regex(/(?=.*[A-Z])/, "Password must contain at least one uppercase letter")
-            .regex(/(?=.*\d)/, "Password must contain at least one number")
-            .regex(/(?=.*[!@#$%^&*()_\-+=[\]{};':"\\|,.<>/?`~])/,
-                "Password must contain at least one special character")
+            .regex(
+                passwordRegex,
+                "Password should be atleast 6 characters long with one uppercase, lowercase, number, and special character"
+            )
     }
 )
