@@ -5,6 +5,7 @@ import { AppError, AppResponse } from "../utils";
 
 export const register = async (req: Request, res: Response, next: NextFunction) => {
     const { name, email, password } = req.body
+    console.log(req.body);
 
     if (!name || !email || !password) {
         throw new AppError(400, 'All fields are required')
