@@ -2,6 +2,7 @@ import express from "express";
 import { config } from "./config";
 import { AppError, errorHandler } from "./utils";
 import authRoutes from "./routes/auth.routes";
+import pollRoutes from "./routes/poll.routes";
 import cookieParser from "cookie-parser";
 
 
@@ -12,6 +13,7 @@ app.use(express.json())
 app.use(cookieParser())
 
 app.use('/api/auth', authRoutes)
+app.use('/api/polls', pollRoutes)
 
 
 app.get('/', (req, res) => {
