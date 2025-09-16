@@ -290,30 +290,49 @@ export const getPollVotes = async (req: AppRequest, res: Response) => {
         throw new AppError(400, "Poll not found")
     }
 
-    // Fetch options with vote count
-    const options = await prisma.pollOption.findMany({
-        where: { pollId },
+    const poll = await prisma.poll.findUnique({
+        where: { id: pollId },
         include: {
-            vote: true, // include votes relation
+            pollOptions: {
+                include: {
+                    _count: {
+                        select: { vote: true },
+                    },
+                },
+            },
         },
     });
 
-    if (!options || options.length === 0) {
-        throw new AppError(404, "Poll not found or has no options");
+    if (!poll) {
+        throw new AppError(404, "Poll not found");
     }
 
     // Format votes
     const voteCounts: Record<string, number> = {};
     let totalVotes = 0;
 
-    options.forEach((opt) => {
-        const count = opt.vote.length;
+    poll.pollOptions.forEach((opt) => {
+        const count = opt._count.vote;
         voteCounts[opt.text] = count;
         totalVotes += count;
     });
 
+    const pollOptions = poll.pollOptions.map(opt => ({
+        id: opt.id,
+        text: opt.text,
+        pollId: opt.pollId
+    }))
+
     return new AppResponse(200, "Poll Votes", {
+        poll: {
+            id: poll.id,
+            question: poll.question,
+            isPublished: poll.isPublished,
+            createdAt: poll.createdAt,
+            options: pollOptions
+        },
         votes: voteCounts,
         total: totalVotes,
     }).send(res);
+
 };
