@@ -1,5 +1,5 @@
 import express from "express";
-import { createPoll, deletePoll, getActivePolls, updateOptions, updatePoll } from "../controller/poll.controller";
+import { createPoll, deletePoll, getActivePolls, updateOptions, updatePoll, voteOption } from "../controller/poll.controller";
 import { validate } from "../middleware/validate";
 import { pollValidation, updateOptionValidation, updateQuestionValidation } from "../validations/poll.validation";
 import { verifyToken } from "../middleware/verifyToken";
@@ -13,6 +13,7 @@ router.get('/', getActivePolls)
 router.put('/:pollId', verifyToken, validate(updateQuestionValidation), updatePoll)
 router.put('/options/:pollId', verifyToken, validate(updateOptionValidation), updateOptions)
 router.delete('/:pollId', verifyToken, deletePoll)
+// router.post('/vote/pollId', voteOption)
 
 
 export default router

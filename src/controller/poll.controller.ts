@@ -1,6 +1,7 @@
 import { Response } from "express"
 import { AppError, AppRequest, AppResponse } from "../utils";
 import { prisma } from "../utils/prisma";
+import { io } from "../app";
 
 export const createPoll = async (req: AppRequest, res: Response) => {
     const userId = req.userId
@@ -188,4 +189,77 @@ export const deletePoll = async (req: AppRequest, res: Response) => {
     ])
 
     return new AppResponse(200, "Deleted").send(res)
+}
+
+
+export const voteOption = async (req: AppRequest, res: Response) => {
+    // get the user id from the req obj 
+    const userId = req.userId
+
+    // checking if the user is logged in
+    if (!userId) {
+        throw new AppError(401, "Please login");
+    }
+
+    const { pollId } = req.params
+    const { pollOptionId } = req.body
+
+    // retriving the options
+    const option = await prisma.poll.findUnique({
+        where: {
+            id: pollId,
+            pollOptions: pollOptionId
+        }
+    })
+
+    // if options does not exist
+    if (!option) {
+        throw new AppError(404, "Poll does not exists")
+    }
+
+
+    // if the vote already exists
+    const existingVote = await prisma.vote.findFirst({
+        where: {
+            userId,
+            PollOption: { pollId }
+        }
+    })
+
+
+    let vote;
+
+    // updating the vote if the user already voted
+    if (existingVote) {
+        vote = await prisma.vote.update({
+            where: { id: existingVote.id },
+            data: {
+                pollOptionId
+            },
+            include: { PollOption: true }
+        })
+    }
+    // creating the vote
+    else {
+        vote = await prisma.vote.create({
+            data: {
+                userId,
+                pollOptionId
+            },
+            include: { PollOption: true }
+        })
+    }
+
+    // fetching all options that have voted
+    const results = await prisma.pollOption.findMany({
+        where: { pollId },
+        include: { _count: { select: { Vote: true } } },
+    });
+
+
+    io.to(`poll-${pollId}`).emit("pollUpdated", results);
+
+
+    // returning the response
+    return new AppResponse(200, "Successfullly Voted", vote).send(res)
 }

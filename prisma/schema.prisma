@@ -14,6 +14,7 @@ model User {
   email        String @unique
   passwordHash String
   polls        Poll[]
+  Vote         Vote[]
 }
 
 model Poll {
@@ -32,8 +33,15 @@ model PollOption {
   text   String
   Poll   Poll?   @relation(fields: [pollId], references: [id])
   pollId String?
+  Vote   Vote[]
 }
 
 model Vote {
-  id String @id @default(cuid())
+  id           String   @id @default(cuid())
+  userId       String
+  pollOptionId String
+  createdAt    DateTime @default(now())
+
+  User       User       @relation(fields: [userId], references: [id])
+  PollOption PollOption @relation(fields: [pollOptionId], references: [id])
 }
