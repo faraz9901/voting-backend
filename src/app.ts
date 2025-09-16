@@ -20,9 +20,6 @@ app.use('/api/auth', authRoutes)
 app.use('/api/polls', pollRoutes)
 
 
-app.get('/', (req, res) => {
-    throw new AppError(404, 'Not Found')
-})
 
 app.use(errorHandler)
 

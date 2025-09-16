@@ -7,7 +7,7 @@ export const createPoll = async (req: AppRequest, res: Response) => {
     const userId = req.userId
 
     if (!userId) {
-        throw new AppError(401, "No user found");
+        throw new AppError(401, "Please login");
     }
     // This body is validated by validate middleware
     const { question, options, isPublished } = req.body
@@ -83,7 +83,7 @@ export const updatePoll = async (req: AppRequest, res: Response) => {
 
     // Question is required
     if (!question) {
-        throw new AppError(401, "Question is required")
+        throw new AppError(400, "Question is required")
     }
 
     // Updating the poll
@@ -130,28 +130,48 @@ export const updateOptions = async (req: AppRequest, res: Response) => {
         throw new AppError(403, "You don't have permission to edit this poll")
     }
 
-    const { options } = req.body
+    const { text, pollOptionId } = req.body
 
-    // option is required
-    if (!options) {
-        throw new AppError(401, "Question is required")
+    if (!text) {
+        throw new AppError(401, "Text is required")
     }
 
-    // Updating the options
-    const updatedOptions = await prisma.poll.update({
-        where: { id: pollId },
-        data: {
-            pollOptions: {
-                deleteMany: {},
-                create: options.map((opt: string) => ({ text: opt }))
-            }
-        },
-        include: { pollOptions: true }
-    })
+    let updatedOption;
 
+    // If updating a existing option then the user will have to send pollOptionId
+    if (pollOptionId) {
+
+        const pollOptionToUpdate = await prisma.pollOption.findFirst({
+            where: {
+                id: pollOptionId,
+                pollId: currentPoll.id
+            }
+        })
+
+        if (!pollOptionToUpdate) {
+            throw new AppError(404, "Poll Option not found")
+        }
+
+        updatedOption = await prisma.pollOption.update({
+            where: {
+                id: pollOptionId
+            },
+            data: {
+                text
+            }
+        })
+    } else {
+        // If polloption id is send then create a new option
+        updatedOption = await prisma.pollOption.create({
+            data: {
+                text,
+                pollId,
+            }
+        })
+    }
 
     // returning the response
-    return new AppResponse(200, "Updated Successfully", updatedOptions).send(res)
+    return new AppResponse(200, "Updated Successfully", updatedOption).send(res)
 }
 
 
@@ -180,10 +200,11 @@ export const deletePoll = async (req: AppRequest, res: Response) => {
 
     // if current user is not the owner of the poll
     if (userId !== currentPoll.userId) {
-        throw new AppError(403, "You don't have permission to edit this poll")
+        throw new AppError(403, "You don't have permission to delete this poll")
     }
 
     await prisma.$transaction([
+        prisma.vote.deleteMany({ where: { pollOption: { pollId } } }),
         prisma.pollOption.deleteMany({ where: { pollId } }),
         prisma.poll.delete({ where: { id: pollId } })
     ])
@@ -204,27 +225,32 @@ export const voteOption = async (req: AppRequest, res: Response) => {
     const { pollId } = req.params
     const { pollOptionId } = req.body
 
+    if (!pollId || !pollOptionId) {
+        throw new AppError(400, "Poll ID and Poll Option ID is required")
+    }
+
     // retriving the options
-    const option = await prisma.poll.findUnique({
+    const option = await prisma.pollOption.findFirst({
         where: {
-            id: pollId,
-            pollOptions: pollOptionId
+            id: pollOptionId,
+            pollId: pollId
         }
     })
 
     // if options does not exist
     if (!option) {
-        throw new AppError(404, "Poll does not exists")
+        throw new AppError(404, "Poll or the Poll Option does not exists")
     }
 
-
-    // if the vote already exists
+    // Checking if the user already voted or not
     const existingVote = await prisma.vote.findFirst({
         where: {
-            userId,
-            PollOption: { pollId }
-        }
-    })
+            userId: userId, // the current user
+            pollOption: {
+                pollId: pollId, // the poll they’re voting in
+            },
+        },
+    });
 
 
     let vote;
@@ -236,7 +262,7 @@ export const voteOption = async (req: AppRequest, res: Response) => {
             data: {
                 pollOptionId
             },
-            include: { PollOption: true }
+            include: { pollOption: true }
         })
     }
     // creating the vote
@@ -246,20 +272,48 @@ export const voteOption = async (req: AppRequest, res: Response) => {
                 userId,
                 pollOptionId
             },
-            include: { PollOption: true }
+            include: { pollOption: true }
         })
     }
 
-    // fetching all options that have voted
-    const results = await prisma.pollOption.findMany({
-        where: { pollId },
-        include: { _count: { select: { Vote: true } } },
-    });
-
-
-    io.to(`poll-${pollId}`).emit("pollUpdated", results);
-
+    io.to(`poll-${pollId}`).emit("pollUpdated");
 
     // returning the response
-    return new AppResponse(200, "Successfullly Voted", vote).send(res)
+    return new AppResponse(200, existingVote ? "Vote Updated" : "Successfully Voted").send(res)
 }
+
+
+export const getPollVotes = async (req: AppRequest, res: Response) => {
+    const { pollId } = req.params;
+
+    if (!pollId) {
+        throw new AppError(400, "Poll not found")
+    }
+
+    // Fetch options with vote count
+    const options = await prisma.pollOption.findMany({
+        where: { pollId },
+        include: {
+            vote: true, // include votes relation
+        },
+    });
+
+    if (!options || options.length === 0) {
+        throw new AppError(404, "Poll not found or has no options");
+    }
+
+    // Format votes
+    const voteCounts: Record<string, number> = {};
+    let totalVotes = 0;
+
+    options.forEach((opt) => {
+        const count = opt.vote.length;
+        voteCounts[opt.text] = count;
+        totalVotes += count;
+    });
+
+    return new AppResponse(200, "Poll Votes", {
+        votes: voteCounts,
+        total: totalVotes,
+    }).send(res);
+};

@@ -16,6 +16,7 @@ export const updateQuestionValidation = z.object(
 )
 export const updateOptionValidation = z.object(
     {
-        options: z.array(z.string("Some options are invalid").min(1, "Options can't be empty"), "Invalid Options").min(2, "Atleast 2 options are needed"),
+        text: z.string("Text is required").min(1, "Invalid Text"),
+        pollOptionId: z.string("Invalid Poll Option Id").optional()
     }
 )

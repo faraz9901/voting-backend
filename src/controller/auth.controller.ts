@@ -3,6 +3,7 @@ import { prisma } from "../utils/prisma";
 import argon2 from "argon2"
 import { AppError, AppRequest, AppResponse, } from "../utils";
 import { generateToken } from "../utils/jwt";
+import { config, ENV } from "../config";
 
 
 export const register = async (req: Request, res: Response, next: NextFunction) => {
@@ -17,7 +18,7 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
         }
     })
 
-    // if the user exist throw this error
+    // if the user exist 
     if (user) {
         throw new AppError(400, 'User already exists')
     }
@@ -73,8 +74,8 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
 
     // saving the jwt token in cookie
     res.cookie('token', token, {
-        httpOnly: false,
-        secure: false,
+        httpOnly: true,
+        secure: config.env === ENV.PRODUCTION, // True in production
         sameSite: 'none',
         maxAge: 7 * 24 * 60 * 60 * 1000  // 7 days
     })
